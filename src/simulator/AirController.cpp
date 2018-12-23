@@ -45,7 +45,7 @@ AirController::~AirController() {
 
 void setFinalApproach(Flight *f){
     // Final approach
-    Position pos0(3500.0, 0.0, 100.0);
+    Position pos0(3500.0, 0.0, 200.0);
     Position pos1(1500.0, 0.0, 50.0);
     Position pos2(200.0, 0.0, 25.0);
     Position pos3(-750.0, 0.0, 25.0);
@@ -53,13 +53,13 @@ void setFinalApproach(Flight *f){
     Route r0, r1, r2, r3;
 
     r0.pos = pos0;
-    r0.speed = 500.0;
+    r0.speed = 80.0;
     r1.pos = pos1;
-    r1.speed = 100.0;
+    r1.speed = 75.0;
     r2.pos = pos2;
-    r2.speed = 19.0;
+    r2.speed = 70.0;
     r3.pos = pos3;
-    r3.speed = 15.0;
+    r3.speed = 50.0;
     //-----------------
 
     f->getRoute()->push_back(r0);
@@ -72,11 +72,30 @@ void setRoute(Flight *f, std::string routeId){
     std::vector<Position> route = getRouteCircuit(routeId);
 
     std::vector<Position>::iterator it;
+    ushort legCount = 0;
     for(it = route.begin(); it != route.end(); it++){
         Route r;
-        r.speed = 200;
         r.pos = (*it);
+
+        if( (*it).get_name() == "FINAL" )
+            r.speed = 85;
+        else if( (*it).get_name().find("1") != std::string::npos )
+            r.speed = 100;
+        else if( (*it).get_name().find("2") != std::string::npos )
+            r.speed = 120;
+        else if( (*it).get_name().find("3") != std::string::npos )
+            r.speed = 120;
+        else if( (*it).get_name().find("4") != std::string::npos )
+            r.speed = 140;
+        else if( (*it).get_name().find("5") != std::string::npos )
+            r.speed = 150;
+        else
+            r.speed = 265;
+
+        //r.speed = 200 - legCount*40;
+
         f->getRoute()->push_back(r);
+        legCount++;
     }
 }
 
@@ -105,12 +124,21 @@ AirController::doWork()
 
     for(it = flights.begin(); it!=flights.end(); ++it)
     {
+        std::string routeName;
         if((*it)->getRoute()->empty())
         {
-            if( ((*it)->getPosition().get_y() < 0) )
-                setRoute((*it), "SouthWest");
+            if( (*it)->getPosition().get_x() < 9000 )
+                routeName += "North";
+            else if( (*it)->getPosition().get_x() > 12000 )
+                routeName += "South";
+
+
+            if( (*it)->getPosition().get_y() < 0 )
+                routeName += "West";
             else
-                setRoute((*it), "SouthEast");
+                routeName += "East";
+
+            setRoute((*it), routeName);
 
             setFinalApproach((*it));
     	}
