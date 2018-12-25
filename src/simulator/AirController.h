@@ -26,8 +26,12 @@
 #define AIRCONTROLLER_H_
 
 #include "Singleton.h"
+#include <unordered_map>
+#include <stdlib.h>
 
 namespace atcsim{
+
+std::unordered_map<std::string, ushort> tcasAlerts;
 
 class AirController: public Singleton<AirController> {
 public:
@@ -35,6 +39,7 @@ public:
 	virtual ~AirController();
 
 	void doWork();
+
 };
 
 };  // namespace atcsim

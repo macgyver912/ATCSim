@@ -32,6 +32,8 @@
 
 namespace atcsim{
 
+float tcasAlertDist = 2.0*COLLISION_DISTANCE;
+
 AirController::AirController() {
 	// TODO Auto-generated constructor stub
     loadNavPoints();
@@ -100,7 +102,72 @@ void setRoute(Flight *f, std::string routeId){
 }
 
 
+void setEmptyRoute(Flight *f){
+    std::string routeName;
 
+    if( f->getPosition().get_x() < 9000 )
+        routeName += "North";
+    else if( f->getPosition().get_x() > 12000 )
+        routeName += "South";
+
+    if( f->getPosition().get_y() < 0 )
+        routeName += "West";
+    else
+        routeName += "East";
+
+    setRoute(f, routeName);
+
+    setFinalApproach(f);
+}
+
+
+
+void checkTCAS(Flight *f)
+{
+    std::list<Flight*> flights = Airport::getInstance()->getFlights();
+    std::list<Flight*>::iterator otherFlight;
+
+    float deltaDist, deltaBearing, deltaAlt;
+    for(otherFlight = flights.begin(); otherFlight!=flights.end(); ++otherFlight)
+    {
+        // Check that is not the flight itself
+        if(f->getId() != (*otherFlight)->getId())
+        {
+
+            // If this flight has not alert active, active it
+            if(tcasAlerts.count(f->getId()) == 0)
+            {
+                deltaDist = f->getPosition().distance((*otherFlight)->getPosition());
+                if(deltaDist < tcasAlertDist)
+                {
+                    std::cout << "TCAS: conflict between " << f->getId() << " and "
+                        << (*otherFlight)->getId() << " (" << deltaDist << ")" << std::endl;
+
+                    deltaBearing = f->getBearing() - (*otherFlight)->getBearing();
+
+                    if(abs(deltaBearing) < 25){         // reduce speed
+
+                    }else if(abs(deltaBearing) < 60){   // reduce speed and deviation
+
+                    }else{      // deviation both flights and change altitude
+
+                    }
+
+
+
+                    // Set this flights as alerted but not resolved
+                    tcasAlerts.insert({f->getId(), 0});
+                    tcasAlerts.insert({(*otherFlight)->getId(), 0});
+                }//if
+            }
+            else
+            {
+
+            }//if
+
+        }//if
+    }// for
+}// checkTCAS
 
 
 
@@ -124,24 +191,15 @@ AirController::doWork()
 
     for(it = flights.begin(); it!=flights.end(); ++it)
     {
-        std::string routeName;
+
+        // If this flight has not route
         if((*it)->getRoute()->empty())
         {
-            if( (*it)->getPosition().get_x() < 9000 )
-                routeName += "North";
-            else if( (*it)->getPosition().get_x() > 12000 )
-                routeName += "South";
-
-
-            if( (*it)->getPosition().get_y() < 0 )
-                routeName += "West";
-            else
-                routeName += "East";
-
-            setRoute((*it), routeName);
-
-            setFinalApproach((*it));
+            setEmptyRoute((*it));
     	}
+
+        // Check collision conflicts
+        checkTCAS((*it));
     }
 }
 
