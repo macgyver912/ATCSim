@@ -31,7 +31,7 @@
 
 namespace atcsim{
 
-std::unordered_map<std::string, ushort> tcasAlerts;
+std::unordered_map<std::string, std::string> tcasAlerts;
 
 class AirController: public Singleton<AirController> {
 public:

@@ -29,6 +29,7 @@
 #include "CircuitRoute.h"
 #include <list>
 #include <fstream>
+#include <exception>
 
 namespace atcsim{
 
@@ -105,7 +106,9 @@ void setRoute(Flight *f, std::string routeId){
 void setEmptyRoute(Flight *f){
     std::string routeName;
 
-    if( f->getPosition().get_x() < 9000 )
+    if( f->getPosition().get_x() < 1000 && f->getSpeed() < LANDING_SPEED + 20)
+        routeName += "GoAround";
+    else if( f->getPosition().get_x() < 9000 )
         routeName += "North";
     else if( f->getPosition().get_x() > 12000 )
         routeName += "South";
@@ -121,52 +124,146 @@ void setEmptyRoute(Flight *f){
 }
 
 
+float CheckBearing(float bearing){
+    bearing = (180 - bearing);
+    if(bearing < 0)
+        bearing += 360;
+    else if(bearing > 360)
+        bearing -= 360;
+    return bearing;
+}
 
-void checkTCAS(Flight *f)
+
+void checkTCAS(Flight *f, Flight *otherFlight)
 {
-    std::list<Flight*> flights = Airport::getInstance()->getFlights();
-    std::list<Flight*>::iterator otherFlight;
 
-    float deltaDist, deltaBearing, deltaAlt;
-    for(otherFlight = flights.begin(); otherFlight!=flights.end(); ++otherFlight)
+    float deltaDist, deltaBearing, deltaAlt, dist2arptThis, dist2arptOther;
+    float offsetXthis, offsetYthis, offsetXother, offsetYother;
+    // Check that is not the flight itself
+    if(f->getId() != otherFlight->getId())
     {
-        // Check that is not the flight itself
-        if(f->getId() != (*otherFlight)->getId())
+        // If this flight has not alert active, active it
+        if(tcasAlerts.count(f->getId()) == 0)
         {
+            dist2arptThis = f->getPosition().distance(Position(0, 0, 0));
+            dist2arptOther = otherFlight->getPosition().distance(Position(0, 0, 0));
+            deltaDist = f->getPosition().distance(otherFlight->getPosition());
 
-            // If this flight has not alert active, active it
-            if(tcasAlerts.count(f->getId()) == 0)
+            if(deltaDist < tcasAlertDist)
             {
-                deltaDist = f->getPosition().distance((*otherFlight)->getPosition());
-                if(deltaDist < tcasAlertDist)
-                {
-                    std::cout << "TCAS: conflict between " << f->getId() << " and "
-                        << (*otherFlight)->getId() << " (" << deltaDist << ")" << std::endl;
+                std::cout << "TCAS: conflict between " << f->getId() << " and "
+                    << otherFlight->getId() << " (" << deltaDist << ")" << std::endl;
 
-                    deltaBearing = f->getBearing() - (*otherFlight)->getBearing();
+                deltaBearing = f->getBearing() - otherFlight->getBearing();
 
-                    if(abs(deltaBearing) < 25){         // reduce speed
+                // If bearing is 'South'
+                if(CheckBearing(f->getBearing()) > 90
+                    && CheckBearing(f->getBearing()) < 270 ){
+                    offsetXthis = 1000;
+                    offsetYthis = -1000;
+                }else{
+                    offsetXthis = -1000;
+                    offsetYthis = 1000;
+                }
 
-                    }else if(abs(deltaBearing) < 60){   // reduce speed and deviation
+                // If bearing is 'South'
+                if(CheckBearing(otherFlight->getBearing()) > 90
+                    && CheckBearing(otherFlight->getBearing()) < 270 ){
+                    offsetXother = 1000;
+                    offsetYother = -1000;
+                }else{
+                    offsetXother = -1000;
+                    offsetYother = 1000;
+                }
 
-                    }else{      // deviation both flights and change altitude
-
+                if(abs(deltaBearing) < 25){
+                    // TODO: improve this logic because it depends of bearing
+                    if(dist2arptThis > dist2arptOther){
+                        // deviation to right
+                        Position auxPos(
+                            f->getPosition().get_x() + offsetXthis,
+                            f->getPosition().get_y() + offsetYthis,
+                            MAINTAIN_ALT
+                        );
+                        Route auxRoute;
+                        auxRoute.pos = auxPos;
+                        auxRoute.speed = f->getSpeed() - 20;
+                        f->getRoute()->push_front(auxRoute);
+                    }else if(otherFlight->getRoute()->size() > 0){
+                        // deviation to right
+                        Position auxPos(
+                            otherFlight->getPosition().get_x() + offsetXother,
+                            otherFlight->getPosition().get_y() + offsetYother,
+                            MAINTAIN_ALT
+                        );
+                        Route auxRoute;
+                        auxRoute.pos = auxPos;
+                        auxRoute.speed = otherFlight->getSpeed() - 20;
+                        otherFlight->getRoute()->push_front(auxRoute);
                     }
 
+                }else if(abs(deltaBearing) < 60){
+                    // TODO: improve this logic because it depends of bearing
+                    if(dist2arptThis > dist2arptOther){
+                        // deviation to right
+                        Position auxPos(
+                            f->getPosition().get_x() + offsetXthis,
+                            f->getPosition().get_y() + offsetYthis,
+                            MAINTAIN_ALT
+                        );
+                        Route auxRoute;
+                        auxRoute.pos = auxPos;
+                        auxRoute.speed = f->getSpeed() - 30;
+                        f->getRoute()->push_front(auxRoute);
+                    }else if(otherFlight->getRoute()->size() > 0){
+                        // deviation to right
+                        Position auxPos(
+                            otherFlight->getPosition().get_x() + offsetXother,
+                            otherFlight->getPosition().get_y() + offsetYother,
+                            MAINTAIN_ALT
+                        );
+                        Route auxRoute;
+                        auxRoute.pos = auxPos;
+                        auxRoute.speed = otherFlight->getSpeed() - 30;
+                        otherFlight->getRoute()->push_front(auxRoute);
+                    }
 
+                }else{
+                    // TODO: improve this logic because it depends of bearing
+                    if(f->getPosition().get_z() > otherFlight->getPosition().get_z()){
+                        f->getRoute()->front().pos.set_z( f->getRoute()->front().pos.get_z() + 1000 );
+                        if( otherFlight->getRoute()->size() > 0 && otherFlight->getRoute()->front().pos.get_z() > 1500 )
+                            otherFlight->getRoute()->front().pos.set_z( otherFlight->getRoute()->front().pos.get_z() - 1000 );
+                    }else{
+                        if(otherFlight->getRoute()->size() > 0)
+                            otherFlight->getRoute()->front().pos.set_z( otherFlight->getRoute()->front().pos.get_z() + 1000 );
+                        if( f->getRoute()->front().pos.get_z() > 1500 )
+                            f->getRoute()->front().pos.set_z( f->getRoute()->front().pos.get_z() - 1000 );
+                    }
+                }
 
-                    // Set this flights as alerted but not resolved
-                    tcasAlerts.insert({f->getId(), 0});
-                    tcasAlerts.insert({(*otherFlight)->getId(), 0});
-                }//if
-            }
-            else
-            {
-
+                // Set this flights as alerted but not resolved
+                tcasAlerts.insert({f->getId(), otherFlight->getId()});
+                tcasAlerts.insert({otherFlight->getId(), f->getId()});
             }//if
+        }
+        else
+        {
+            // If TCAS alert has been triggered
+            std::unordered_map<std::string, std::string>::const_iterator got = tcasAlerts.find (f->getId());
+            if ( got != tcasAlerts.end() ){
+                deltaDist = f->getPosition().distance(otherFlight->getPosition());
+                // If these flights are the alerted flights and are free of conflict
+                if( got->second == otherFlight->getId() && deltaDist > tcasAlertDist){
+                    tcasAlerts.erase(f->getId());
+                    tcasAlerts.erase(otherFlight->getId());
+                }
+            }//if got
 
-        }//if
-    }// for
+        }//if-else tcasAlerts.count
+
+    }//if f->getId()
+
 }// checkTCAS
 
 
@@ -175,31 +272,27 @@ void
 AirController::doWork()
 {
     std::list<Flight*> flights = Airport::getInstance()->getFlights();
-    std::list<Flight*>::iterator it;
-
-
-
-    // Test
-    Route test0, test1, test2;
-    test0.pos = getRoutePoint("MORAL");
-    test0.speed = 200;
-    test1.pos = getRoutePoint("TOBEK");
-    test1.speed = 150;
-    test2.pos = getRoutePoint("ASBIN");
-    test2.speed = 120;
-    //-----------------
+    std::list<Flight*>::iterator it, it2;
 
     for(it = flights.begin(); it!=flights.end(); ++it)
     {
-
-        // If this flight has not route
-        if((*it)->getRoute()->empty())
-        {
-            setEmptyRoute((*it));
-    	}
-
-        // Check collision conflicts
-        checkTCAS((*it));
+        // This code could throw exception if flight crashes while accessing it
+        try{
+            // If this flight has not route
+            if((*it)->getRoute()->empty())
+            {
+                setEmptyRoute((*it));
+        	}
+            // Check collision conflicts
+            for(it2 = flights.begin(); it2!=flights.end(); ++it2){
+                if(it2 != flights.end())
+                    checkTCAS((*it), (*it2));
+                else
+                    std::cerr << "it2 is NULL" << '\n';
+            }
+        }catch(std::exception& e){
+            std::cout << "Standard exception: " << e.what() << std::endl;
+        }
     }
 }
 
