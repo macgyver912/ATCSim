@@ -149,78 +149,90 @@ void checkTCAS(Flight *f, Flight *otherFlight)
             dist2arptOther = otherFlight->getPosition().distance(Position(0, 0, 0));
             deltaDist = f->getPosition().distance(otherFlight->getPosition());
 
-            if(deltaDist < tcasAlertDist)
+            // If distance below minimum and aren't at final approach
+            if(deltaDist < tcasAlertDist && dist2arptThis > 4500 && dist2arptOther > 4500)
             {
                 std::cout << "TCAS: conflict between " << f->getId() << " and "
                     << otherFlight->getId() << " (" << deltaDist << ")" << std::endl;
 
-                deltaBearing = f->getBearing() - otherFlight->getBearing();
+                deltaBearing = CheckBearing(toDegrees(f->getBearing())) -
+                    CheckBearing(toDegrees(otherFlight->getBearing()));
 
                 // If bearing is 'South'
-                if(CheckBearing(f->getBearing()) > 90
-                    && CheckBearing(f->getBearing()) < 270 ){
-                    offsetXthis = 1000;
-                    offsetYthis = -1000;
-                }else{
-                    offsetXthis = -1000;
-                    offsetYthis = 1000;
+                if(CheckBearing(toDegrees(f->getBearing())) > 90
+                    && CheckBearing(toDegrees(f->getBearing())) < 270 )
+                {
+                    offsetXthis = 1500.0;
+                    // right turn to south-eastbound flights
+                    offsetYthis = -1500.0;
+                    // left turn to south-westbound flights
+                    if(f->getPosition().get_y() < 0)
+                        offsetYthis *= -1.0;
+                }
+                else
+                {
+                    offsetXthis = -1500.0;
+                    // left turn to north-eastbound flights
+                    offsetYthis = -1500.0;
+                    // right turn to north-westbound flights
+                    if(f->getPosition().get_y() < 0)
+                        offsetYthis *= -1.0;
                 }
 
                 // If bearing is 'South'
-                if(CheckBearing(otherFlight->getBearing()) > 90
-                    && CheckBearing(otherFlight->getBearing()) < 270 ){
-                    offsetXother = 1000;
-                    offsetYother = -1000;
-                }else{
-                    offsetXother = -1000;
-                    offsetYother = 1000;
+                if(CheckBearing(toDegrees(otherFlight->getBearing())) > 90
+                    && CheckBearing(toDegrees(otherFlight->getBearing())) < 270 )
+                {
+                    offsetXother = 1500.0;
+                    // right turn to south-eastbound flights
+                    offsetYother = -1500.0;
+                    // left turn to south-westbound flights
+                    if(otherFlight->getPosition().get_y() < 0)
+                        offsetYother *= -1.0;
+                }
+                else
+                {
+                    offsetXother = -1500.0;
+                    // left turn to north-eastbound flights
+                    offsetYother = -1500.0;
+                    // right turn to north-westbound flights
+                    if(otherFlight->getPosition().get_y() < 0)
+                        offsetYother *= -1.0;
                 }
 
-                if(abs(deltaBearing) < 25){
+                if(abs(deltaBearing) < 25)
+                {
                     // TODO: improve this logic because it depends of bearing
                     if(dist2arptThis > dist2arptOther){
-                        // deviation to right
-                        Position auxPos(
-                            f->getPosition().get_x() + offsetXthis,
-                            f->getPosition().get_y() + offsetYthis,
-                            MAINTAIN_ALT
-                        );
-                        Route auxRoute;
-                        auxRoute.pos = auxPos;
-                        auxRoute.speed = f->getSpeed() - 20;
-                        f->getRoute()->push_front(auxRoute);
+                        // reduce speed
+                        f->getRoute()->front().speed -= 20;
                     }else if(otherFlight->getRoute()->size() > 0){
-                        // deviation to right
-                        Position auxPos(
-                            otherFlight->getPosition().get_x() + offsetXother,
-                            otherFlight->getPosition().get_y() + offsetYother,
-                            MAINTAIN_ALT
-                        );
-                        Route auxRoute;
-                        auxRoute.pos = auxPos;
-                        auxRoute.speed = otherFlight->getSpeed() - 20;
-                        otherFlight->getRoute()->push_front(auxRoute);
+                        // reduce speed
+                        otherFlight->getRoute()->front().speed -= 20;
                     }
 
-                }else if(abs(deltaBearing) < 60){
+                }
+                else if(abs(deltaBearing) < 60)
+                {
                     // TODO: improve this logic because it depends of bearing
                     if(dist2arptThis > dist2arptOther){
-                        // deviation to right
+                        // deviation to right, descend and reduce speed
                         Position auxPos(
                             f->getPosition().get_x() + offsetXthis,
                             f->getPosition().get_y() + offsetYthis,
-                            MAINTAIN_ALT
+                            f->getPosition().get_z() - 300
                         );
                         Route auxRoute;
                         auxRoute.pos = auxPos;
                         auxRoute.speed = f->getSpeed() - 30;
                         f->getRoute()->push_front(auxRoute);
+
                     }else if(otherFlight->getRoute()->size() > 0){
-                        // deviation to right
+                        // deviation to right, descend and reduce speed
                         Position auxPos(
                             otherFlight->getPosition().get_x() + offsetXother,
                             otherFlight->getPosition().get_y() + offsetYother,
-                            MAINTAIN_ALT
+                            otherFlight->getPosition().get_z() - 300
                         );
                         Route auxRoute;
                         auxRoute.pos = auxPos;
@@ -228,17 +240,33 @@ void checkTCAS(Flight *f, Flight *otherFlight)
                         otherFlight->getRoute()->push_front(auxRoute);
                     }
 
-                }else{
+                }
+                else
+                {
                     // TODO: improve this logic because it depends of bearing
                     if(f->getPosition().get_z() > otherFlight->getPosition().get_z()){
-                        f->getRoute()->front().pos.set_z( f->getRoute()->front().pos.get_z() + 1000 );
-                        if( otherFlight->getRoute()->size() > 0 && otherFlight->getRoute()->front().pos.get_z() > 1500 )
-                            otherFlight->getRoute()->front().pos.set_z( otherFlight->getRoute()->front().pos.get_z() - 1000 );
-                    }else{
-                        if(otherFlight->getRoute()->size() > 0)
-                            otherFlight->getRoute()->front().pos.set_z( otherFlight->getRoute()->front().pos.get_z() + 1000 );
-                        if( f->getRoute()->front().pos.get_z() > 1500 )
-                            f->getRoute()->front().pos.set_z( f->getRoute()->front().pos.get_z() - 1000 );
+                        // deviation to right
+                        Position auxPos(
+                            f->getPosition().get_x() + offsetXthis,
+                            f->getPosition().get_y() + offsetYthis,
+                            f->getPosition().get_z() - 300
+                        );
+                        Route auxRoute;
+                        auxRoute.pos = auxPos;
+                        auxRoute.speed = f->getSpeed() - 30;
+                        f->getRoute()->push_front(auxRoute);
+
+                    }else if(otherFlight->getRoute()->size() > 0){
+                        // deviation to right
+                        Position auxPos(
+                            otherFlight->getPosition().get_x() + offsetXother,
+                            otherFlight->getPosition().get_y() + offsetYother,
+                            otherFlight->getPosition().get_z() - 300
+                        );
+                        Route auxRoute;
+                        auxRoute.pos = auxPos;
+                        auxRoute.speed = otherFlight->getSpeed() - 30;
+                        otherFlight->getRoute()->push_front(auxRoute);
                     }
                 }
 
