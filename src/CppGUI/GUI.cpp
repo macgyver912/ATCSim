@@ -569,65 +569,76 @@ GUI::DrawFlight(ATCDisplay::ATCDFlight flight) {
 }
 
 void
-GUI::DrawAirport() {
-    glBegin(GL_QUADS);
-    glColor3f(0.2f, 0.2f, 0.2f);
-    glVertex3f(-airportinfo.radious, airportinfo.radious, 0.0f);
-    glVertex3f(airportinfo.radious, airportinfo.radious, 0.0f);
-    glVertex3f(airportinfo.radious, -airportinfo.radious, 0.0f);
-    glVertex3f(-airportinfo.radious, -airportinfo.radious, 0.0f);
-    glEnd();
+GUI::DrawAirport()
+{
 
-    ATCDisplay::ATCDLandStrip lstrip = (*airportinfo.airportLandstrips.begin());
+	glBegin(GL_QUADS);
+	glColor3f(0.2f,0.2f,0.2f);
+	glVertex3f( -airportinfo.radious, airportinfo.radious, 0.0f);
+	glVertex3f(  airportinfo.radious, airportinfo.radious, 0.0f);
+	glVertex3f(  airportinfo.radious,-airportinfo.radious, 0.0f);
+	glVertex3f( -airportinfo.radious,-airportinfo.radious, 0.0f);
+	glEnd();
 
-    glBegin(GL_QUADS);
-    glColor3f(1.0f, 1.0f, 0.0f);
-    glVertex3f(0.0f, -(lstrip.width/2.0), 0.01f);
-    glVertex3f(0.0f, lstrip.width, 0.01f);
-    glVertex3f(-lstrip.length, lstrip.width, 0.01f);
-    glVertex3f(-lstrip.length, -lstrip.width, 0.01f);
-    glEnd();
 
-    glPushMatrix();
-    glTranslatef(1.0f, 0.0f, 25.0f);
-    GLUquadric *quadratic = gluNewQuadric();
-    gluQuadricNormals(quadratic, GLU_SMOOTH);
-    gluQuadricTexture(quadratic, GL_TRUE);
-    gluSphere(quadratic, 25.0f, 32, 32);
-    glPopMatrix();
+//	ATCDisplay::ATCDLandStrips::iterator it;
+	ATCDisplay::ATCDLandStrips lstrip = airportinfo.airportLandstrips;
 
-    TextDisplay *textDisplay = TextDisplay::getInstance();
-    char points_txt[255];
-    snprintf(points_txt, sizeof(points_txt), "Level: %d\t\tPoints: %d ", airportsim->getMaxFlights(), airportsim->getPoints());
+//	ATCDisplay::ATCDFlights flights = airportsim->getFlights();
+	std::vector<ATCDisplay::ATCDLandStrip>::iterator it;
 
-    textDisplay->displayText(points_txt, GUI::win_width-300, 25, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_TIMES_ROMAN_24);
+	for (it = lstrip.begin(); it != lstrip.end(); ++it)
+	{
 
-    snprintf(points_txt, sizeof(points_txt), "Time speed: x%3.1f", airportsim->getSimT());
-    textDisplay->displayText(points_txt, 10, GUI::win_height-5, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    char help_txt[255];
-    snprintf(help_txt, sizeof(help_txt), "Press Mouse2 and move mouse to change orientation");
-    textDisplay->displayText(help_txt, GUI::win_width-310, GUI::win_height-5, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+		glBegin(GL_QUADS);
+		glColor3f(1.0f,1.0f,0.0f);
+		glVertex3f(  (*it).pos.x, ((*it).pos.y-(*it).width/2.0), 0.01f);
+		glVertex3f(  (*it).pos.x,  ((*it).pos.y+(*it).width/2.0), 0.01f);
+		glVertex3f( ((*it).pos.x-(*it).length), ((*it).pos.y+(*it).width/2.0), 0.01f);
+		glVertex3f( ((*it).pos.x-(*it).length), ((*it).pos.y-(*it).width/2.0), 0.01f);
+		glEnd();
+	}
 
-    snprintf(help_txt, sizeof(help_txt), "<Tab> Change flight info");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-220, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<w>Move camera forward");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-200, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<u> Change units");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-180, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<+>Speed up time");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-160, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<->Slow down time");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-140, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<s>Move camera backward");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-120, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<a>Move camera side left");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-100, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<d>Move camera side right");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-80, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<c>Reset camera position");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-60, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<f>Center camera in flight");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-40, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
-    snprintf(help_txt, sizeof(help_txt), "<esc>Finish");
-    textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-20, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	glPushMatrix();
+	glTranslatef(1.0f, 0.0f, 25.0f);
+	GLUquadric *quadratic = gluNewQuadric();
+	gluQuadricNormals(quadratic, GLU_SMOOTH);
+	gluQuadricTexture(quadratic, GL_TRUE);
+	gluSphere( quadratic, 25.0f, 32, 32);
+	glPopMatrix();
+
+	TextDisplay *textDisplay = TextDisplay::getInstance();
+	char points_txt[255];
+	snprintf(points_txt, 255, "Level: %d\t\tPoints: %d ", airportsim->getMaxFlights(), airportsim->getPoints());
+
+	textDisplay->displayText(points_txt, GUI::win_width-300, 25, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_TIMES_ROMAN_24);
+
+	snprintf(points_txt, 255, "Time speed: x%3.1f", airportsim->getSimT());
+	textDisplay->displayText(points_txt, 10, GUI::win_height-5, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	char help_txt[255];
+	strcpy(help_txt, "Press Mouse3 and move mouse to change orientation");
+	textDisplay->displayText(help_txt, GUI::win_width-310, GUI::win_height-5, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<Tab> Change flight info");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-200, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<w>Move camera forward");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-180, GUI::win_width,
+GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<+>Speed up time");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-160, GUI::win_width,
+GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<->Slow down time");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-140, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<s>Move camera backward");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-120, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<a>Move camera side left");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-100, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<d>Move camera side right");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-80, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<c>Reset camera position");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-60, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<f>Center camera in flight");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-40, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+	strcpy(help_txt, "<esc>Finish");
+	textDisplay->displayText(help_txt, GUI::win_width-160, GUI::win_height-20, GUI::win_width, GUI::win_height, WHITE, GLUT_BITMAP_HELVETICA_12);
+
 }

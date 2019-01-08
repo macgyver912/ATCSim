@@ -61,8 +61,12 @@
 // Conditions for landing
 
 #define LANDING_POS_X 0.0f
-#define LANDING_POS_Y 0.0f
+#define LANDING_POS_Y 10000.0f
 #define LANDING_POS_Z 25.0f
+
+#define LANDING_POS_XX		0.0f
+#define LANDING_POS_YY		-10000.0f
+#define LANDING_POS_ZZ		25.0f
 
 // Lowest airport in the word is at -1240 ft
 // and lowest land zone in Earth is -3904 ft
